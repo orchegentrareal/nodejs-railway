@@ -1,6 +1,11 @@
 const express = require('express');
 const cors = require('cors');
 
+const fetch = (...args) => 
+  import('node-fetch').then(({d
+  efault: fetch}) => 
+  fetch(...args));
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -22,12 +27,38 @@ app.get('/health', (req, res) => {
 });
 
 // EVA chat
-app.post('/api/eva/chat', (req, res) => {
-  const { prompt } = req.body || {};
-  res.json({
-    ok: true,
-    reply: 'EVA: I received your request -> ' + (prompt || '')
-  });
+app.post('/api/eva/chat', async (req, res) => {
+  try {
+    const { prompt } = req.body || {};
+
+    const response = await fetch(process.env.OPENROUTER_BASE_URL + '/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: process.env.OPENROUTER_MODEL,
+        messages: [
+          { role: "system", content: "You are EVA, a smart AI assistant acting like a human executive." },
+          { role: "user", content: prompt }
+        ]
+      })
+    });
+
+    const data = await response.json();
+
+    res.json({
+      ok: true,
+      reply: data.choices?.[0]?.message?.content || "No response"
+    });
+
+  } catch (error) {
+    res.json({
+      ok: false,
+      error: error.message
+    });
+  }
 });
 
 // Agents execute
