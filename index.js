@@ -27,44 +27,14 @@ app.get('/health', (req, res) => {
 });
 
 // EVA chat (REAL AI)
-app.post('/api/eva/chat', async (req, res) => {
-  try {
-    const { prompt } = req.body || {};
 
-    const response = await fetch(process.env.OPENROUTER_BASE_URL + '/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content: "You are EVA, a highly intelligent human-like AI assistant."
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ]
-      })
-    });
+  app.post('/api/eva/chat', (req, res) => {
+  const { prompt } = req.body || {};
 
-    const data = await response.json();
-
-    res.json({
-      ok: true,
-      reply: data.choices?.[0]?.message?.content || "No AI response"
-    });
-
-  } catch (error) {
-    res.json({
-      ok: false,
-      error: error.message
-    });
-  }
+  res.json({
+    ok: true,
+    reply: "EVA working: " + (prompt || "no input")
+  });
 });
 
 // Start server
