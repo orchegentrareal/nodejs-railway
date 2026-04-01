@@ -1,10 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 
-const fetch = (...args) => 
-  import('node-fetch').then(({d
-  efault: fetch}) => 
-  fetch(...args));
+const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -23,10 +20,13 @@ app.get('/', (req, res) => {
 
 // Health
 app.get('/health', (req, res) => {
-  res.json({ ok: true, status: 'ok' });
+  res.json({
+    ok: true,
+    live_ai: !!process.env.OPENROUTER_API_KEY
+  });
 });
 
-// EVA chat
+// EVA chat (REAL AI)
 app.post('/api/eva/chat', async (req, res) => {
   try {
     const { prompt } = req.body || {};
@@ -38,10 +38,16 @@ app.post('/api/eva/chat', async (req, res) => {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: process.env.OPENROUTER_MODEL,
+        model: process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini",
         messages: [
-          { role: "system", content: "You are EVA, a smart AI assistant acting like a human executive." },
-          { role: "user", content: prompt }
+          {
+            role: "system",
+            content: "You are EVA, a highly intelligent human-like AI assistant."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
         ]
       })
     });
@@ -50,7 +56,7 @@ app.post('/api/eva/chat', async (req, res) => {
 
     res.json({
       ok: true,
-      reply: data.choices?.[0]?.message?.content || "No response"
+      reply: data.choices?.[0]?.message?.content || "No AI response"
     });
 
   } catch (error) {
@@ -61,5 +67,7 @@ app.post('/api/eva/chat', async (req, res) => {
   }
 });
 
-// Agents execute
-app.post
+// Start server
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
