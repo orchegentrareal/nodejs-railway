@@ -53,14 +53,16 @@ function auth(req: Request, res: Response, next: NextFunction) {
 
   (req as Request & { user?: User }).user = user;
   next();
-}
 
-app.get('/', (_req, res) => {
-  res.json({
-    message: 'Orchegentra backend running',
-    status: 'running',
-    version: 'step-1-auth-base',
-  });
+  
+app.get("/", (req, res) => {
+  const secret = req.headers["x-api-key"];
+
+  if (secret !== process.env.APP_SECRET) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  res.json({ status: "ok", secure: true });
 });
 
 app.get('/health', (_req, res) => {
