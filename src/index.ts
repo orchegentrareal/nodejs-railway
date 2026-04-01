@@ -4,6 +4,7 @@ import crypto from 'crypto';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const APP_SECRET = process.env.APP_SECRET || 'change-this-secret-now';
 
 app.use(express.json());
 
@@ -31,11 +32,19 @@ function sanitizeUser(user: User) {
   };
 }
 
+function requireAppSecret(req: Request, res: Response, next: NextFunction) {
+  const secret = req.headers['x-api-key'];
+
+  if (!secret || secret !== APP_SECRET) {
+    return res.status(401).json({ message: 'Unauthorized' });
+  }
+
+  next();
+}
+
 function auth(req: Request, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization || '';
-  const token = authHeader.startsWith('Bearer ')
-    ? authHeader.slice(7)
-    : '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
 
   if (!token) {
     return res.status(401).json({ error: 'Missing token' });
@@ -53,23 +62,22 @@ function auth(req: Request, res: Response, next: NextFunction) {
 
   (req as Request & { user?: User }).user = user;
   next();
+}
 
-  
-app.get("/", (req, res) => {
-  const secret = req.headers["x-api-key"];
-
-  if (secret !== process.env.APP_SECRET) {
-    return res.status(401).json({ message: "Unauthorized" });
-  }
-
-  res.json({ status: "ok", secure: true });
+app.get('/', requireAppSecret, (_req, res) => {
+  res.json({
+    message: 'Orchegentra secured backend running',
+    status: 'running',
+    secure: true,
+    version: 'final-secured-auth-base',
+  });
 });
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
 
-app.post('/signup', (req, res) => {
+app.post('/signup', requireAppSecret, (req, res) => {
   const { name, email, password } = req.body || {};
 
   if (!name || !email || !password) {
@@ -78,10 +86,9 @@ app.post('/signup', (req, res) => {
     });
   }
 
-  const existing = users.find(
-    (u) => u.email.toLowerCase() === String(email).toLowerCase()
-  );
+  const normalizedEmail = String(email).trim().toLowerCase();
 
+  const existing = users.find((u) => u.email === normalizedEmail);
   if (existing) {
     return res.status(409).json({ error: 'Email already registered' });
   }
@@ -89,7 +96,7 @@ app.post('/signup', (req, res) => {
   const user: User = {
     id: crypto.randomUUID(),
     name: String(name).trim(),
-    email: String(email).trim().toLowerCase(),
+    email: normalizedEmail,
     password: String(password),
     createdAt: new Date().toISOString(),
   };
@@ -102,7 +109,7 @@ app.post('/signup', (req, res) => {
   });
 });
 
-app.post('/login', (req, res) => {
+app.post('/login', requireAppSecret, (req, res) => {
   const { email, password } = req.body || {};
 
   if (!email || !password) {
@@ -111,10 +118,10 @@ app.post('/login', (req, res) => {
     });
   }
 
+  const normalizedEmail = String(email).trim().toLowerCase();
+
   const user = users.find(
-    (u) =>
-      u.email === String(email).trim().toLowerCase() &&
-      u.password === String(password)
+    (u) => u.email === normalizedEmail && u.password === String(password)
   );
 
   if (!user) {
@@ -131,26 +138,25 @@ app.post('/login', (req, res) => {
   });
 });
 
-app.get('/users', (_req, res) => {
+app.get('/users', requireAppSecret, (_req, res) => {
   res.json({
     count: users.length,
     users: users.map(sanitizeUser),
   });
 });
 
-app.get('/me', auth, (req, res) => {
+app.get('/me', requireAppSecret, auth, (req, res) => {
   const user = (req as Request & { user?: User }).user!;
+
   res.json({
     message: 'Authorized',
     user: sanitizeUser(user),
   });
 });
 
-app.post('/logout', auth, (req, res) => {
+app.post('/logout', requireAppSecret, auth, (req, res) => {
   const authHeader = req.headers.authorization || '';
-  const token = authHeader.startsWith('Bearer ')
-    ? authHeader.slice(7)
-    : '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
 
   if (token) {
     sessions.delete(token);
